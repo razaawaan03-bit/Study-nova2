@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../course_maker/course_setup_screen.dart';
-import '../study_from_photo/study_from_photo_screen.dart';
-import '../study_from_photo/study_library_screen.dart';
-import '../course_maker/my_courses_screen.dart';
-import '../missions/mission_detail_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/lab_service.dart';
 import '../../services/mission_service.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../course_maker/course_setup_screen.dart';
+import '../course_maker/my_courses_screen.dart';
+import '../labs/labs_home_screen.dart';
+import '../missions/my_missions_screen.dart';
+import '../study_from_photo/study_from_photo_screen.dart';
+import '../study_from_photo/study_library_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -16,28 +20,24 @@ class HomeScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
+        title: const Text('Sign out'),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await AuthService().signOut();
-                // A shared device: the next student must not inherit the
-                // previous account's missions or Lab progress.
                 await MissionService.instance.reset();
                 await LabService.instance.reset();
                 if (context.mounted) {
                   Navigator.of(context).pushReplacementNamed('/');
                 }
               } catch (e) {
-                // Classified, so a misconfigured backend is not reported as a
-                // lost connection and no raw exception reaches the student.
                 final message = AuthService.friendlyError(e);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -52,7 +52,7 @@ class HomeScreen extends StatelessWidget {
                 }
               }
             },
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            child: const Text('Sign out'),
           ),
         ],
       ),
@@ -63,495 +63,518 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = AuthService();
     final user = authService.currentUser;
+    final name = user?.userMetadata?['full_name'] ?? user?.email ?? 'Student';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Study Nova'),
-        centerTitle: true,
+        title: const Text('Dashboard'),
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(Icons.info_outline_rounded),
             onPressed: () => Navigator.of(context).pushNamed('/about'),
             tooltip: 'About Study Nova',
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () => _handleLogout(context),
-            tooltip: 'Sign Out',
+            tooltip: 'Sign out',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue.shade600, Colors.blue.shade800],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 900;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Welcome back!',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  _HeaderCard(name: name),
+                  const SizedBox(height: AppSpacing.xxl),
+                  _QuickActionsGrid(
+                    isWide: isWide,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    user?.userMetadata?['full_name'] ?? user?.email ?? 'User',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
-                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  _StatsSection(isWide: isWide),
+                  const SizedBox(height: AppSpacing.xxl),
+                  _LearningOverviewSection(isWide: isWide),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // My Learning Mission (Stage 7 — Mission Mode)
-            _buildMissionCard(context),
-            const SizedBox(height: 32),
-
-            // Quick Actions
-            Text(
-              'Quick Actions',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            // Create Course Button
-            _buildActionCard(
-              context,
-              icon: Icons.add_circle,
-              title: 'Create New Course',
-              description: 'Start building an AI-powered course',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CourseSetupScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // My Courses Button
-            _buildActionCard(
-              context,
-              icon: Icons.library_books,
-              title: 'My Courses',
-              description: 'View and manage your courses',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const MyCoursesScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Study From Photo Button (NEW)
-            _buildActionCard(
-              context,
-              icon: Icons.photo_camera,
-              title: 'Study From Photo',
-              description: 'Take a photo and understand it instantly',
-              isPrimary: true,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const StudyFromPhotoScreen(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // My Study Library Button (NEW)
-            _buildActionCard(
-              context,
-              icon: Icons.bookmark,
-              title: 'My Study Library',
-              description: 'View your saved photo analyses',
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const StudyLibraryScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Study Nova Labs Button (Stage 6)
-            _buildActionCard(
-              context,
-              icon: Icons.science,
-              title: 'Study Nova Labs',
-              description: 'Explore guided Labs, lessons and quizzes',
-              onTap: () {
-                Navigator.of(context).pushNamed('/labs');
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // My Missions Button
-            _buildActionCard(
-              context,
-              icon: Icons.flag_circle_outlined,
-              title: 'My Missions',
-              description: 'Every mission, its progress and milestones',
-              onTap: () {
-                Navigator.of(context).pushNamed('/missions');
-              },
-            ),
-            const SizedBox(height: 32),
-
-            // Statistics Section
-            Text(
-              'Your Statistics',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            LayoutBuilder(
-              builder: (context, constraints) {
-                // Two columns on a phone, four on a wide/browser layout, so
-                // the stats never overflow a narrow screen.
-                final columns = constraints.maxWidth > 560 ? 4 : 2;
-                const items = <(String, String)>[
-                  ('0', 'Courses Created'),
-                  ('0', 'Hours Learned'),
-                  ('0', 'Certificates'),
-                  ('0', 'Points'),
-                ];
-
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: <Widget>[
-                    for (final (value, label) in items)
-                      SizedBox(
-                        width:
-                            (constraints.maxWidth - (columns - 1) * 12) /
-                            columns,
-                        child: _buildStatCard(context, value, label),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMissionCard(BuildContext context) {
-    return const _MissionBannerCard();
-  }
-
-  Widget _buildActionCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-    bool isPrimary = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isPrimary ? Colors.blue.shade300 : Colors.grey.shade300,
-            width: isPrimary ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: isPrimary ? Colors.blue.shade50 : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isPrimary ? Colors.blue.shade200 : Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: isPrimary ? Colors.blue.shade800 : Colors.blue.shade700,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isPrimary ? Colors.blue.shade700 : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            // The trailing chevron is decorative; on a very narrow screen the
-            // title/description column takes priority.
-            if (MediaQuery.sizeOf(context).width > 340)
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: isPrimary ? Colors.blue.shade400 : Colors.grey.shade400,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(BuildContext context, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-/// "My Learning Mission" card for the Home screen (Stage 7 • Mission Mode).
-///
-/// Shows the active mission with its day and progress, or prompts the student
-/// to create one. It listens to `MissionService`, so it updates as soon as a
-/// mission task is completed.
-class _MissionBannerCard extends StatefulWidget {
-  const _MissionBannerCard();
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.name});
 
-  @override
-  State<_MissionBannerCard> createState() => _MissionBannerCardState();
-}
-
-class _MissionBannerCardState extends State<_MissionBannerCard> {
-  final MissionService _missionService = MissionService.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    _missionService.addListener(_onMissionsChanged);
-    if (!_missionService.isLoaded) _missionService.load();
-  }
-
-  @override
-  void dispose() {
-    _missionService.removeListener(_onMissionsChanged);
-    super.dispose();
-  }
-
-  void _onMissionsChanged() {
-    if (mounted) setState(() {});
-  }
+  final String name;
 
   @override
   Widget build(BuildContext context) {
-    final mission = _missionService.featuredMission;
-
-    if (mission == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Colors.indigo, Colors.blue],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My Learning Mission',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tell Study Nova what you want to achieve and it will build the '
-              'daily journey for you.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            _bannerActions(
-              context,
-              primaryLabel: 'Create Your Mission',
-              primaryIcon: Icons.add,
-              onPrimary: () =>
-                  Navigator.of(context).pushNamed('/mission-create'),
-            ),
-          ],
-        ),
-      );
-    }
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xxl),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.indigo, Colors.blue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 16),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            'My Learning Mission',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppColors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  name,
+                  style: textTheme.headlineMedium?.copyWith(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Your next focused study session is ready. Pick up where you left off and keep momentum going.',
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: AppColors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            mission.title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          const SizedBox(width: AppSpacing.xxl),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppColors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.xxl),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              size: 52,
               color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Day ${mission.suggestedDay} of ${mission.durationDays}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: mission.progressFraction,
-              minHeight: 8,
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${mission.computedProgress}% • '
-            '${mission.completedRequiredTaskCount}/${mission.requiredTaskCount} tasks',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          _bannerActions(
-            context,
-            primaryLabel: 'Continue Mission',
-            primaryIcon: Icons.play_arrow,
-            onPrimary: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => MissionDetailScreen(missionId: mission.id),
-              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  /// The banner buttons.
-  ///
-  /// A Material button never shrinks below its label, so on a narrow screen
-  /// (a small phone, or a narrow browser window) the two buttons are stacked
-  /// full-width instead of sitting next to each other and overflowing.
-  Widget _bannerActions(
-    BuildContext context, {
-    required String primaryLabel,
-    required IconData primaryIcon,
-    required VoidCallback onPrimary,
-  }) {
-    final create = FilledButton.icon(
-      onPressed: onPrimary,
-      icon: Icon(primaryIcon),
-      label: Text(primaryLabel),
-      style: FilledButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.indigo,
-      ),
-    );
-    final list = TextButton(
-      onPressed: () => Navigator.of(context).pushNamed('/missions'),
-      style: TextButton.styleFrom(foregroundColor: Colors.white),
-      child: const Text('My Missions'),
-    );
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid({required this.isWide});
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 300) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[create, const SizedBox(height: 8), list],
+  final bool isWide;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <_ActionItemData>[
+      _ActionItemData(
+        title: 'Study From Photo',
+        subtitle: 'Convert material into instant explanations',
+        icon: Icons.photo_camera_rounded,
+        color: AppColors.primary,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const StudyFromPhotoScreen()),
           );
-        }
-        return Wrap(
-          spacing: 10,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: <Widget>[create, list],
-        );
-      },
+        },
+      ),
+      _ActionItemData(
+        title: 'Course Maker',
+        subtitle: 'Turn notes into structured study courses',
+        icon: Icons.library_books_rounded,
+        color: AppColors.accent,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CourseSetupScreen()),
+          );
+        },
+      ),
+      _ActionItemData(
+        title: 'Labs',
+        subtitle: 'Explore guided lessons and quizzes',
+        icon: Icons.science_rounded,
+        color: AppColors.info,
+        onTap: () => Navigator.of(context).pushNamed('/labs'),
+      ),
+      _ActionItemData(
+        title: 'Mission Mode',
+        subtitle: 'Keep daily study momentum',
+        icon: Icons.flag_rounded,
+        color: AppColors.success,
+        onTap: () => Navigator.of(context).pushNamed('/missions'),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick access',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        GridView.builder(
+          itemCount: actions.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 4 : 2,
+            crossAxisSpacing: AppSpacing.lg,
+            mainAxisSpacing: AppSpacing.lg,
+            childAspectRatio: isWide ? 1.15 : 1.0,
+          ),
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            return _ActionCard(item: action);
+          },
+        ),
+      ],
     );
   }
+}
+
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({required this.item});
+
+  final _ActionItemData item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(item.icon, color: item.color),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                item.title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                item.subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionItemData {
+  const _ActionItemData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final void Function() onTap;
+}
+
+class _StatsSection extends StatelessWidget {
+  const _StatsSection({required this.isWide});
+
+  final bool isWide;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = <_StatCardData>[
+      _StatCardData(label: 'Courses', value: '0', accent: AppColors.primary),
+      _StatCardData(label: 'Hours', value: '12h', accent: AppColors.accent),
+      _StatCardData(label: 'Labs', value: '04', accent: AppColors.info),
+      _StatCardData(label: 'Points', value: '680', accent: AppColors.success),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Your progress',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        GridView.builder(
+          itemCount: stats.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 4 : 2,
+            crossAxisSpacing: AppSpacing.lg,
+            mainAxisSpacing: AppSpacing.lg,
+            childAspectRatio: 1.6,
+          ),
+          itemBuilder: (context, index) {
+            final stat = stats[index];
+            return Container(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: stat.accent,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  Text(
+                    stat.value,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    stat.label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCardData {
+  const _StatCardData({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+}
+
+class _LearningOverviewSection extends StatelessWidget {
+  const _LearningOverviewSection({required this.isWide});
+
+  final bool isWide;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <_OverviewItem>[
+      _OverviewItem(
+        title: 'Study Library',
+        subtitle: 'Saved photo analyses and references',
+        action: 'Open library',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const StudyLibraryScreen()),
+          );
+        },
+      ),
+      _OverviewItem(
+        title: 'My Courses',
+        subtitle: 'Track and continue your classes',
+        action: 'View courses',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MyCoursesScreen()),
+          );
+        },
+      ),
+      _OverviewItem(
+        title: 'Labs',
+        subtitle: 'Guided practice and lesson check-ins',
+        action: 'Explore labs',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const LabsHomeScreen()),
+          );
+        },
+      ),
+      _OverviewItem(
+        title: 'Missions',
+        subtitle: 'Structured daily study goals',
+        action: 'View missions',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MyMissionsScreen()),
+          );
+        },
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Learning overview',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        GridView.builder(
+          itemCount: cards.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 2 : 1,
+            crossAxisSpacing: AppSpacing.lg,
+            mainAxisSpacing: AppSpacing.lg,
+            childAspectRatio: isWide ? 2.8 : 1.8,
+          ),
+          itemBuilder: (context, index) {
+            final item = cards[index];
+            return Material(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.premiumGradient.asMap().containsKey(0)
+                              ? LinearGradient(
+                                  colors: AppColors.premiumGradient,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Icon(
+                          Icons.trending_up_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.lg),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              item.subtitle,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Text(
+                        item.action,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _OverviewItem {
+  const _OverviewItem({
+    required this.title,
+    required this.subtitle,
+    required this.action,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String action;
+  final void Function() onTap;
 }
