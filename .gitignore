@@ -1,0 +1,112 @@
+# Local diagnostic and build log files
+_resp.txt
+_s8build.err
+analysis.txt
+analyze.txt
+analysis_exitcode.txt
+analyzer_results.json
+build_err.txt
+build_log.txt
+build_web_log.txt
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# Environment, credentials, and secret files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!.env.*.example
+!**/.env.example
+!**/.env.*.example
+*.pem
+*.crt
+*.key
+*.p12
+*.pfx
+*.ppk
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+**/*.pem
+**/*.crt
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.ppk
+**/*.jks
+**/*.keystore
+**/*.mobileprovision
+**/*.p8
+**/key.properties
+**/local.properties
+**/*.secret
+**/*.secret.*
+**/secrets.*
+**/*.token
+**/*.credentials
+**/*.credential
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code and local machine files
+.vscode/
+*.code-workspace
+.metadata
+**/.metadata
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+**/build/
+/coverage/
+**/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android machine-specific and SECRET signing material.
+# `key.properties` and any *.jks/*.keystore hold the upload key passwords: they
+# must never be committed, and losing them means you can no longer update the
+# app on Google Play.

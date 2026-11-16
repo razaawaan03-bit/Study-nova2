@@ -1,0 +1,24 @@
+# Release signing template for Study Nova.
+#
+# HOW TO SET UP (manual, on your machine only):
+#
+# 1. Create an upload keystore (keep the .jks file somewhere safe and private):
+#      keytool -genkey -v -keystore ~/studynova-upload.jks \
+#              -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# 2. Copy this file to `android/key.properties` and fill in the real values.
+#
+# 3. Back up BOTH the .jks file and this file. If you lose them you can never
+#    update the app on Google Play again under the same account.
+#
+# 4. `android/key.properties` is git-ignored on purpose - never commit it and
+#    never share it. Do not put passwords into any other file either.
+#
+# The build falls back to debug signing when this file is missing, so local
+# `flutter run --release` keeps working, but Google Play will reject a
+# debug-signed bundle.
+
+storeFile=/absolute/path/to/studynova-upload.jks
+storePassword=REPLACE_ME
+keyAlias=upload
+keyPassword=REPLACE_ME
