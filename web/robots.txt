@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://studynova.netlify.app/sitemap.xml
